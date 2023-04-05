@@ -1,0 +1,40 @@
+{
+  "name": "serverless-lucky-json-schema-generator",
+  "version": "1.0.0",
+  "description": "Generate a JSON Schema from Yup Validators",
+  "main": "index.js",
+  "keywords": [
+    "serverless",
+    "serverless2",
+    "serverless3",
+    "serverless framework",
+    "serverless framework plugin",
+    "serverless plugin",
+    "openAPI",
+    "openAPIv3",
+    "openAPI3",
+    "yup",
+    "zod"
+  ],
+  "scripts": {
+    "test": "mocha --config './test/.mocharc.js'"
+  },
+  "author": {
+    "name": "Bryann Barbosa"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bryannbarbosa/serverless-lucky-json-schema-generator.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bryannbarbosa/serverless-lucky-json-schema-generator/issues"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "fs": "^0.0.1-security",
+    "path": "^0.12.7"
+  },
+  "engines": {
+    "node": ">=14"
+  }
+}
