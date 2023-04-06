@@ -1,5 +1,6 @@
 const path = require('path')
 const fs = require('fs')
+const appRoot = require('app-root-path')
 
 class ServerlessLucky {
   constructor(serverless, options, { log }) {
@@ -54,14 +55,6 @@ class ServerlessLucky {
     )
   }
 
-  getAppRootDir() {
-    let currentDir = __dirname
-    while (!fs.existsSync(path.join(currentDir, 'package.json'))) {
-      currentDir = path.join(currentDir, '..')
-    }
-    return currentDir
-  }
-
   generateJsonSchema(schema) {
     let model = {
       type: schema.type,
@@ -111,50 +104,54 @@ class ServerlessLucky {
         this.serverless.service.functions[httpFunction].events[0].httpApi
       const pluginField = Object.keys(this.eventPropertiesSchema.properties)
       const validator = httpApi[pluginField]
+
+      if (!validator) {
+        continue
+      }
+
       const validatorsBasePath = path.resolve(
-        this.getAppRootDir(),
+        appRoot.toString(),
         this.serverless.service.custom.lucky.validatorsBasePath
       )
 
-      if (validator) {
-        const validatorModulePath = require(path.resolve(
-          validatorsBasePath,
-          validator.schema
-        ))
+      const validatorModulePath = require(path.resolve(
+        appRoot.toString(),
+        validatorsBasePath,
+        validator.schema
+      ))
 
-        const outputPath = this.serverless.service.custom.lucky.outputPath
-        const jsonSchema = this.generateJsonSchema(validatorModulePath)
-        const uniqueFolders = [...new Set(httpApi.lucky.folders)]
+      const outputPath = this.serverless.service.custom.lucky.outputPath
+      const jsonSchema = this.generateJsonSchema(validatorModulePath)
+      const uniqueFolders = [...new Set(httpApi.lucky.folders)]
 
-        for (let folder of uniqueFolders) {
-          let outputFilePath = path.resolve(
-            this.getAppRootDir(),
-            outputPath,
-            folder,
-            this.generateFileName(httpApi.method)
-          )
-          const destinationFolder = path.resolve(
-            this.getAppRootDir(),
-            outputPath,
-            folder
-          )
+      for (let folder of uniqueFolders) {
+        let outputFilePath = path.resolve(
+          appRoot.toString(),
+          outputPath,
+          folder,
+          this.generateFileName(httpApi.method)
+        )
+        const destinationFolder = path.resolve(
+          appRoot.toString(),
+          outputPath,
+          folder
+        )
 
-          if (!fs.existsSync(destinationFolder)) {
-            fs.mkdirSync(destinationFolder, { recursive: true })
-          }
-          fs.writeFile(
-            outputFilePath,
-            JSON.stringify(jsonSchema, null, 4),
-            'utf8',
-            (err) => {
-              if (err) {
-                const error = new Error('Error in writing output file.')
-                throw error
-              }
-            }
-          )
-          this.log.success(`Lucky task: schema created in ${outputFilePath}`)
+        if (!fs.existsSync(destinationFolder)) {
+          fs.mkdirSync(destinationFolder, { recursive: true })
         }
+        fs.writeFile(
+          outputFilePath,
+          JSON.stringify(jsonSchema, null, 4),
+          'utf8',
+          (err) => {
+            if (err) {
+              const error = new Error('Error in writing output file.')
+              throw error
+            }
+          }
+        )
+        this.log.success(`Lucky task: schema created in ${outputFilePath}`)
       }
     }
   }
