@@ -1,6 +1,9 @@
 const path = require('path')
 const fs = require('fs')
 const appRoot = require('app-root-path')
+const YAML = require('yaml')
+const _ = require('lodash')
+const chalk = require('chalk')
 
 class ServerlessLucky {
   constructor(serverless, options, { log }) {
@@ -27,6 +30,7 @@ class ServerlessLucky {
           properties: {
             schema: { type: 'string' },
             folders: { type: 'array' },
+            contentType: { type: 'string' },
           },
           additionalProperties: false,
           required: ['schema', 'folders'],
@@ -39,6 +43,8 @@ class ServerlessLucky {
       properties: {
         validatorsBasePath: { type: 'string' },
         outputPath: { type: 'string' },
+        inlineDocs: { type: 'boolean', default: false },
+        useExamples: { type: 'boolean', default: false },
       },
       required: ['lucky'],
       additionalProperties: false,
@@ -59,7 +65,6 @@ class ServerlessLucky {
     let model = {
       type: schema.type,
       properties: {},
-      example: {},
     }
 
     if (!schema.spec.optional) {
@@ -74,19 +79,26 @@ class ServerlessLucky {
         if (!schema.fields[field].spec.optional) {
           model.properties[field].required = true
         }
-        switch (schema.fields[field].type) {
-          case 'string':
-            model.properties[field].example = ''
-            break
-          case 'array':
-            model.properties[field].example = []
-            break
-          case 'number':
-            model.properties[field].example = 10
-            break
-          case 'date':
-            model.properties[field].example = new Date().toISOString()
-            break
+
+        const condition = this.serverless.service.custom.lucky.useExamples
+
+        if (condition) {
+          model.example = {}
+
+          switch (schema.fields[field].type) {
+            case 'string':
+              model.properties[field].example = ''
+              break
+            case 'array':
+              model.properties[field].example = []
+              break
+            case 'number':
+              model.properties[field].example = 10
+              break
+            case 'date':
+              model.properties[field].example = new Date().toISOString()
+              break
+          }
         }
       }
     }
@@ -136,22 +148,99 @@ class ServerlessLucky {
           outputPath,
           folder
         )
+        if (
+          this.serverless.service.custom.documentation &&
+          this.serverless.service.custom.documentation.models
+        ) {
+          const schemaPath = path.resolve(
+            appRoot.toString(),
+            outputPath,
+            folder,
+            this.generateFileName(httpApi.method)
+          )
+          console.log(httpApi)
+          const modelObject = {
+            name: _.camelCase(httpFunction),
+            contentType: httpApi.lucky.contentType
+              ? httpApi.lucky.contentType
+              : 'application/json',
+            description: '',
+            schema: `\${file(${schemaPath.replace(
+              `${appRoot.toString()}/`,
+              ''
+            )})}`,
+          }
+          const serverlessConfigFile = fs.readFileSync(
+            path.resolve(appRoot.toString(), 'serverless.yml'),
+            'utf-8'
+          )
 
-        if (!fs.existsSync(destinationFolder)) {
-          fs.mkdirSync(destinationFolder, { recursive: true })
-        }
-        fs.writeFile(
-          outputFilePath,
-          JSON.stringify(jsonSchema, null, 4),
-          'utf8',
-          (err) => {
-            if (err) {
-              const error = new Error('Error in writing output file.')
-              throw error
+          const serverlessYaml = YAML.parse(serverlessConfigFile)
+          if (
+            this.serverless.service.custom.lucky.inlineDocs &&
+            JSON.stringify(serverlessYaml.custom.documentation.models) === '{}'
+          ) {
+            serverlessYaml.custom.documentation.models = []
+            serverlessYaml.custom.documentation.models.push(modelObject)
+            fs.writeFile(
+              path.resolve(appRoot.toString(), 'serverless.yml'),
+              YAML.stringify(serverlessYaml),
+              'utf8'
+            )
+          } else if (
+            this.serverless.service.custom.lucky.inlineDocs &&
+            !_.find(serverlessYaml.custom.documentation.models, modelObject)
+          ) {
+            serverlessYaml.custom.documentation.models.push(modelObject)
+            fs.writeFile(
+              path.resolve(appRoot.toString(), 'serverless.yml'),
+              YAML.stringify(serverlessYaml),
+              'utf8'
+            )
+          }
+
+          if (!this.serverless.service.custom.lucky.inlineDocs) {
+            const regex = /(?<=\()(.*)(?=\))/g
+
+            const docRelativePath =
+              serverlessYaml.custom.documentation.match(regex)
+            let docFile = fs.readFileSync(
+              path.resolve(appRoot.toString(), docRelativePath[0]),
+              'utf-8'
+            )
+            const documentationYaml = YAML.parse(docFile)
+            if (!_.find(documentationYaml.documentation.models, modelObject)) {
+              documentationYaml.documentation.models.push(modelObject)
+
+              fs.writeFile(
+                path.resolve(appRoot.toString(), docRelativePath[0]),
+                YAML.stringify(documentationYaml),
+                'utf8'
+              )
             }
           }
-        )
-        this.log.success(`Lucky task: schema created in ${outputFilePath}`)
+
+          
+          if (!fs.existsSync(outputFilePath) && fs.existsSync(destinationFolder)) {
+            fs.mkdirSync(destinationFolder, { recursive: true })
+            fs.writeFile(
+              outputFilePath,
+              JSON.stringify(jsonSchema, null, 4),
+              'utf8'
+            )
+            this.log.notice(
+              chalk.greenBright(
+                `Lucky on ${httpFunction}: schema created in ${outputFilePath}`
+              )
+            )
+          } else {
+            this.log.notice(chalk.yellow(`Lucky: No updates needed for now.`))
+          }
+        } else {
+          this.log.error(
+            'Failed: Please, define a valid documentation property in `serverless.yml`'
+          )
+        }
       }
     }
   }
