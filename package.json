@@ -1,6 +1,6 @@
 {
   "name": "serverless-lucky",
-  "version": "0.0.1",
+  "version": "0.0.4",
   "description": "Generate a JSON Schema from Yup Validators",
   "main": "index.js",
   "keywords": [
@@ -31,8 +31,10 @@
   "license": "MIT",
   "dependencies": {
     "app-root-path": "^3.1.0",
+    "chalk": "4.1.2",
     "fs": "^0.0.1-security",
-    "path": "^0.12.7"
+    "lodash": "^4.17.21",
+    "yaml": "^2.2.1"
   },
   "peerDependencies": {
     "serverless": "^2.60 || 3"
