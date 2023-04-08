@@ -57,16 +57,15 @@ custom:
   lucky:
     validatorsBasePath: src/validations # Specify your validator's location.
     outputPath: docs/models # Specify where you want to generate the output files.
-	useExamples: false # Default, set to true if JSON models should have an example property.
-	inlineDocs: false # Default, set to true if your documentation don't use an external Yaml.
-
-# Note: Paths are relative to the root app folder.
+    useExamples: false # Default, set to true if JSON models should have an example property.
+    inlineDocs: false # Default, set to true if your documentation don't use an external Yaml.
 ```
+> Note: Paths are relative to the root app folder.
+
 Then, in your function, specify the ```httpApi.lucky```
 
 ```yaml
-functions:
-  get-hello-world:
+get-hello-world:
     handler: helloWorld/get.handler
     events:
       - httpApi:
@@ -74,13 +73,12 @@ functions:
           path: /hello
           lucky:
             schema: hello/getValidator.js # Yup Validator File
-			contentType: application/json # Default
-            folders: # Output Folders [Relative to OutputPath]
-			- hello,
-			- hello/new
-
-# Note: Folder's array only use unique values.
+            contentType: application/json # Default
+            folders:
+              - hello
+              - hello/new
 ```
+> Note: Folder's array only uses unique values.
 
 ## Generate JSON Schema's
 To run, execute the command: `sls lucky`, the following message will be showed, if successful: 
@@ -173,9 +171,8 @@ functions:
             schema: hello/createValidator.js # Yup Validator File
             folders: 
             - hello # Same folder or 'group' as get-hello-world
-
-# Note: It will create 2 files, post.json and get.json, located in 'docs/models/hello' folder, according to outputPath.
 ```
+> Note: It will create 2 files, post.json and get.json, located in `docs/models/hello` folder, according to outputPath.
 
 ## License
 
